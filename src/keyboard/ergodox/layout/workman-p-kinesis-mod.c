@@ -19,53 +19,38 @@
 #include <avr/pgmspace.h>
 #include "../../../lib/data-types/misc.h"
 #include "../../../lib/usb/usage-page/keyboard--short-names.h"
-#include "../../../lib/key-functions/public.h"
 #include "../matrix.h"
 #include "../layout.h"
-#include "../../../main.h"
 
-#define USING_WORKMAN_P // undef to use standard workman
-
-// convenience macros
-#define  LAYER         main_arg_layer
-#define  LAYER_OFFSET  main_arg_layer_offset
-#define  ROW           main_arg_row
-#define  COL           main_arg_col
-#define  IS_PRESSED    main_arg_is_pressed
-#define  WAS_PRESSED   main_arg_was_pressed
-
-// FUNCTIONS ------------------------------------------------------------------
-void kbfun_layer_pop_all(void) {
-  kbfun_layer_pop_1();
-  kbfun_layer_pop_2();
-  kbfun_layer_pop_3();
-  kbfun_layer_pop_4();
-  kbfun_layer_pop_5();
-  kbfun_layer_pop_6();
-  kbfun_layer_pop_7();
-  kbfun_layer_pop_8();
-  kbfun_layer_pop_9();
-  kbfun_layer_pop_10();
-}
-
-
-
+// PRIVATE FUNCTIONS ----------------------------------------------------------
+#include "../../../lib/key-functions/private.h"
 static uint8_t inverted_keys_pressed;
 static bool physical_lshift_pressed;
 static bool physical_rshift_pressed;
 
-void invert_shift_state() {
-  // make lshift's state the inverted shift stated
+void _kbfun_invert_shift_state(void) {
+  // make lshift's state the inverted shift state
   _kbfun_press_release(!(physical_lshift_pressed|physical_rshift_pressed), KEY_LeftShift);
   // release rshift
   _kbfun_press_release(false, KEY_RightShift);
 }
-void restore_shift_state() {
+void _kbfun_restore_shift_state(void) {
   // restore the state of left and right shift
   _kbfun_press_release(physical_lshift_pressed, KEY_LeftShift);
   _kbfun_press_release(physical_rshift_pressed, KEY_RightShift);
 }
 
+
+// PUBLIC FUNCTIONS -----------------------------------------------------------
+#include "../../../lib/key-functions/public.h"
+#include "../../../main.h"
+#define  IS_PRESSED    main_arg_is_pressed
+#define  LAYER         main_arg_layer
+#define  ROW           main_arg_row
+#define  COL           main_arg_col
+
+// TODO: This replaces kbfun_shift_press_release as far as I'm concerned,
+//     though it's technically different.
 /*
  * [name]
  *   Invert shift + press|release
@@ -75,10 +60,10 @@ void restore_shift_state() {
  *   key release if shift is not pressed.  Generate a normal keypress or
  *   key release if shift is pressed.
  */
-void kbfun_invert_shift_press_release(void) {
+void kbfun_shift_inverted_press_release(void) {
   if (IS_PRESSED) {
     ++inverted_keys_pressed;
-    invert_shift_state();
+    _kbfun_invert_shift_state();
   }
 
   kbfun_press_release();
@@ -86,7 +71,7 @@ void kbfun_invert_shift_press_release(void) {
   if (!IS_PRESSED) {
     // if this is the last key we're releasing
     if (inverted_keys_pressed == 1) {
-      restore_shift_state();
+      _kbfun_restore_shift_state();
     }
     // avoid underflow
     if (inverted_keys_pressed) {
@@ -94,7 +79,8 @@ void kbfun_invert_shift_press_release(void) {
     }
   }
 }
-
+// TODO: This replaces the default kbfun_press_release,
+//     adding support for shift inversion
 /*
  * [name]
  *   Shift state fix + press|release
@@ -104,7 +90,7 @@ void kbfun_invert_shift_press_release(void) {
  *   If inverted keys are pressed, fix the shift state back to that of the
  *   physical keys before pressing the key.
  */
-void kbfun_fix_shifted_press_release(void) {
+void kbfun_press_release_supporting_shift_inversion(void) {
   uint8_t keycode = kb_layout_get(LAYER, ROW, COL);
   switch (keycode) {
     // shift state toggles
@@ -123,80 +109,51 @@ void kbfun_fix_shifted_press_release(void) {
       // If we're not just changing the modifier, we need our true shift state.
       if (inverted_keys_pressed) {
         inverted_keys_pressed = 0;
-        restore_shift_state();
+        _kbfun_restore_shift_state();
       }
       kbfun_press_release();
       return;
   }
   // We only get here if we pressed left or right shift
   if (inverted_keys_pressed) {
-    invert_shift_state();
+    _kbfun_invert_shift_state();
   } else {
     kbfun_press_release();
   }
 }
 
 // DEFINITIONS ----------------------------------------------------------------
-// basic
+// --- key functions
+#define  kprrel   &kbfun_press_release_supporting_shift_inversion // overridden
 #define  mprrel   &kbfun_mediakey_press_release
 #define  ktog     &kbfun_toggle
 #define  ktrans   &kbfun_transparent
+#define  sinvert  &kbfun_shift_inverted_press_release
+#define  s2kcap   &kbfun_2_keys_capslock_press_release
 // --- layer push/pop functions
 #define  lpush1   &kbfun_layer_push_1
 #define  lpush2   &kbfun_layer_push_2
 #define  lpush3   &kbfun_layer_push_3
 #define  lpush4   &kbfun_layer_push_4
 #define  lpush5   &kbfun_layer_push_5
-#define  lpush6   &kbfun_layer_push_6
-#define  lpush7   &kbfun_layer_push_7
-#define  lpush8   &kbfun_layer_push_8
-#define  lpush9   &kbfun_layer_push_9
-#define  lpush10  &kbfun_layer_push_10
 #define  lpop     &kbfun_layer_pop_all
 #define  lpop1    &kbfun_layer_pop_1
 #define  lpop2    &kbfun_layer_pop_2
 #define  lpop3    &kbfun_layer_pop_3
 #define  lpop4    &kbfun_layer_pop_4
 #define  lpop5    &kbfun_layer_pop_5
-#define  lpop6    &kbfun_layer_pop_6
-#define  lpop7    &kbfun_layer_pop_7
-#define  lpop8    &kbfun_layer_pop_8
-#define  lpop9    &kbfun_layer_pop_9
-#define  lpop10   &kbfun_layer_pop_10
 #define  ltog1    &kbfun_layer_toggle_1
 #define  ltog2    &kbfun_layer_toggle_2
 #define  ltog3    &kbfun_layer_toggle_3
 #define  ltog4    &kbfun_layer_toggle_4
 #define  ltog5    &kbfun_layer_toggle_5
-#define  ltog6    &kbfun_layer_toggle_6
-#define  ltog7    &kbfun_layer_toggle_7
-#define  ltog8    &kbfun_layer_toggle_8
-#define  ltog9    &kbfun_layer_toggle_9
-#define  ltog10   &kbfun_layer_toggle_10
-// device
+// --- device
 #define  dbtldr   &kbfun_jump_to_bootloader
-
-// special
-#define  sshprre  &kbfun_shift_press_release
-#define  s2kcap   &kbfun_2_keys_capslock_press_release
-#define  slpunum  &kbfun_layer_push_numpad
-#define  slponum  &kbfun_layer_pop_numpad
-
-// custom
-#ifdef USING_WORKMAN_P
-#define  sinvert  &kbfun_invert_shift_press_release
-#define  kprrel   &kbfun_fix_shifted_press_release
-#else
-#define  kprrel   &kbfun_press_release
-#define  sinvert  &kbfun_press_release
-#endif
-// ----------------------------------------------------------------------------
 
 // LAYOUT ---------------------------------------------------------------------
 const uint8_t PROGMEM _kb_layout[KB_LAYERS][KB_ROWS][KB_COLUMNS] = {
-// LAYER 0
+// LAYER 0 - Base layout
 KB_MATRIX_LAYER(
-  // unused
   0 /*no key*/,
   // left hand
   KEY_Equal_Plus, KEY_1_Exclamation,     KEY_2_At,           KEY_3_Pound,   KEY_4_Dollar,   KEY_5_Percent, KEY_Application,
@@ -220,16 +177,15 @@ KB_MATRIX_LAYER(
   KEY_PageUp,   0 /*no key*/,     0 /*no key*/,
   KEY_PageDown, KEY_ReturnEnter,  KEY_Spacebar
 ),
-// LAYER 1
+// LAYER 1 - Function layer
 KB_MATRIX_LAYER(
-  // unused
   0 /*no key*/,
   // left hand
   KEY_CapsLock,  KEY_F1, KEY_F2, KEY_F3,              KEY_F4,              KEY_F5,    KEY_F11,
   0,             0,      0,      0,                   0,                   0,         0,
   0,             0,      0,      0,                   0,                   0,         /*no key*/
   0,             0,      0,      0,                   0,                   0,         0,
-  0,             0,      0,      MEDIAKEY_PREV_TRACK, MEDIAKEY_NEXT_TRACK, /*no key*/ /*no key*/
+  0,             5,      0,      MEDIAKEY_PREV_TRACK, MEDIAKEY_NEXT_TRACK, /*no key*/ /*no key*/
   // left thumb
   /* no key*/    0,            0,
   0 /*no key*/,  0 /*no key*/, 0,
@@ -246,9 +202,8 @@ KB_MATRIX_LAYER(
   0, 0 /*no key*/, 0 /*no key*/,
   0, 0,            MEDIAKEY_PLAY_PAUSE
 ),
-// LAYER 2
+// LAYER 2 - Numpad layer
 KB_MATRIX_LAYER(
-  // unused
   0 /*no key*/,
   // left hand
   0, 0, 0,          0, 0, 0,         0,
@@ -272,9 +227,8 @@ KB_MATRIX_LAYER(
   0, 0 /*no key*/, 0 /*no key*/,
   0, 0,            KEYPAD_0_Insert
 ),
-// LAYER 3
+// LAYER 3 - QWERTY conversion layer
 KB_MATRIX_LAYER(
-  // unused
   0 /*no key*/,
   // left hand
   0, 0,       0,       0,       0,       0,         0,
@@ -298,9 +252,33 @@ KB_MATRIX_LAYER(
   0, 0 /*no key*/, 0 /*no key*/,
   0, 0,            0
 ),
-// LAYER 4
+// LAYER 4 - Workman-P to Workman conversion layer
 KB_MATRIX_LAYER(
-  // unused
+  0 /*no key*/,
+  // left hand
+  0,  KEY_1_Exclamation,  KEY_2_At, KEY_3_Pound,  KEY_4_Dollar, KEY_5_Percent,  0,
+  0,  0,                  0,        0,            0,            0,              0,
+  0,  0,                  0,        0,            0,            0,              /*no key*/
+  0,  0,                  0,        0,            0,            0,              0,
+  0,  0,                  0,        0,            0,            /*no key*/      /*no key*/
+  // left thumb
+  /*no key*/    0,            0,
+  0 /*no key*/, 0 /*no key*/, 0,
+  0,            0,            0,
+
+  // right hand
+  0,          KEY_6_Caret,  KEY_7_Ampersand,  KEY_8_Asterisk, KEY_9_LeftParenthesis,  KEY_0_RightParenthesis, 0,
+  0,          0,            0,                0,              0,                      0,                      0,
+  /*no key*/  0,            0,                0,              0,                      0,                      0,
+  0,          0,            0,                0,              0,                      0,                      0,
+  /*no key*/ /*no key*/     0,                0,              0,                      0,                      0,
+  // right thumb
+  0, 0,            /*no key*/
+  0, 0 /*no key*/, 0 /*no key*/,
+  0, 0,            0
+),
+// LAYER 5 - Backspace/Space swap layer
+KB_MATRIX_LAYER(
   0 /*no key*/,
   // left hand
   0,  0,  0,  0,  0,  0,         0,
@@ -323,151 +301,20 @@ KB_MATRIX_LAYER(
   0, 0,            /*no key*/
   0, 0 /*no key*/, 0 /*no key*/,
   0, 0,            KEY_DeleteBackspace
-),
-// LAYER 5
-KB_MATRIX_LAYER(
-  // unused
-  0 /*no key*/,
-  // left hand
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  0,         /*no key*/
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/    0,            0,
-  0 /*no key*/, 0 /*no key*/, 0,
-  0,            0,            0,
-
-  // right hand
-  0,         0,         0, 0, 0, 0, 0,
-  0,         0,         0, 0, 0, 0, 0,
-  /*no key*/ 0,         0, 0, 0, 0, 0,
-  0,         0,         0, 0, 0, 0, 0,
-  /*no key*/ /*no key*/ 0, 0, 0, 0, 0,
-  // right thumb
-  0, 0,            /*no key*/
-  0, 0 /*no key*/, 0 /*no key*/,
-  0, 0,            0
-),
-// LAYER 6
-KB_MATRIX_LAYER(
-  // unused
-  0 /*no key*/,
-  // left hand
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  0,         /*no key*/
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/    0,            0,
-  0 /*no key*/, 0 /*no key*/, 0,
-  0,            0,            0,
-
-  // right hand
-  0,         0,         0, 0, 0, 0, 0,
-  0,         0,         0, 0, 0, 0, 0,
-  /*no key*/ 0,         0, 0, 0, 0, 0,
-  0,         0,         0, 0, 0, 0, 0,
-  /*no key*/ /*no key*/ 0, 0, 0, 0, 0,
-  // right thumb
-  0, 0,            /*no key*/
-  0, 0 /*no key*/, 0 /*no key*/,
-  0, 0,            0
-),
-// LAYER 7
-KB_MATRIX_LAYER(
-  // unused
-  0 /*no key*/,
-  // left hand
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  0,         /*no key*/
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/    0,            0,
-  0 /*no key*/, 0 /*no key*/, 0,
-  0,            0,            0,
-
-  // right hand
-  0,         0,         0, 0, 0, 0, 0,
-  0,         0,         0, 0, 0, 0, 0,
-  /*no key*/ 0,         0, 0, 0, 0, 0,
-  0,         0,         0, 0, 0, 0, 0,
-  /*no key*/ /*no key*/ 0, 0, 0, 0, 0,
-  // right thumb
-  0, 0,            /*no key*/
-  0, 0 /*no key*/, 0 /*no key*/,
-  0, 0,            0
-),
-// LAYER 8
-KB_MATRIX_LAYER(
-  // unused
-  0 /*no key*/,
-  // left hand
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  0,         /*no key*/
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/    0,            0,
-  0 /*no key*/, 0 /*no key*/, 0,
-  0,            0,            0,
-
-  // right hand
-  0,         0,         0, 0, 0, 0, 0,
-  0,         0,         0, 0, 0, 0, 0,
-  /*no key*/ 0,         0, 0, 0, 0, 0,
-  0,         0,         0, 0, 0, 0, 0,
-  /*no key*/ /*no key*/ 0, 0, 0, 0, 0,
-  // right thumb
-  0, 0,            /*no key*/
-  0, 0 /*no key*/, 0 /*no key*/,
-  0, 0,            0
-),
-// LAYER 9
-KB_MATRIX_LAYER(
-  // unused
-  0 /*no key*/,
-  // left hand
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  0,         /*no key*/
-  0,  0,  0,  0,  0,  0,         0,
-  0,  0,  0,  0,  0,  /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/    0,            0,
-  0 /*no key*/, 0 /*no key*/, 0,
-  0,            0,            0,
-
-  // right hand
-  0,         0,         0, 0, 0, 0, 0,
-  0,         0,         0, 0, 0, 0, 0,
-  /*no key*/ 0,         0, 0, 0, 0, 0,
-  0,         0,         0, 0, 0, 0, 0,
-  /*no key*/ /*no key*/ 0, 0, 0, 0, 0,
-  // right thumb
-  0, 0,            /*no key*/
-  0, 0 /*no key*/, 0 /*no key*/,
-  0, 0,            0
-),
+)
 };
 // ----------------------------------------------------------------------------
 
 // PRESS ----------------------------------------------------------------------
 const void_funptr_t PROGMEM _kb_layout_press[KB_LAYERS][KB_ROWS][KB_COLUMNS] = {
-// LAYER 0
+// LAYER 0 - Base layout
 KB_MATRIX_LAYER(
-  // unused
   NULL /*no key*/,
   // left hand
   kprrel, sinvert, sinvert, sinvert, sinvert, sinvert,   kprrel,
   kprrel, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    lpush1,
   kprrel, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    /*no key*/
-  kprrel, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    kprrel,
+  s2kcap, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    kprrel,
   kprrel, kprrel,  kprrel,  kprrel,  kprrel,  /*no key*/ /*no key*/
   // left thumb
   /*no key*/       kprrel,          kprrel,
@@ -478,23 +325,22 @@ KB_MATRIX_LAYER(
   ltog2,     sinvert,   sinvert, sinvert, sinvert, sinvert, kprrel,
   lpush1,    kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
   /*no key*/ kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
-  kprrel,    kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
+  kprrel,    kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  s2kcap,
   /*no key*/ /*no key*/ kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
   // right thumb
   kprrel, kprrel,          /*no key*/
   kprrel, NULL /*no key*/, NULL /*no key*/,
   kprrel, kprrel,          kprrel
 ),
-// LAYER 1
+// LAYER 1 - Function layer
 KB_MATRIX_LAYER(
-  // unused
   NULL /*no key*/,
   // left hand
   kprrel, kprrel, kprrel, kprrel, kprrel, kprrel,    kprrel,
   ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
   ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    /*no key*/
   ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
-  lpop,   ktrans, ktrans, mprrel, mprrel, /*no key*/ /*no key*/
+  lpop,   ltog5,  ktrans, mprrel, mprrel, /*no key*/ /*no key*/
   // left thumb
   /*no key*/       ktrans,          ktrans,
   NULL /*no key*/, NULL /*no key*/, ktrans,
@@ -511,9 +357,8 @@ KB_MATRIX_LAYER(
   ktrans, NULL /*no key*/, NULL /*no key*/,
   ktrans, ktrans,          mprrel
 ),
-// LAYER 2
+// LAYER 2 - Numpad layer
 KB_MATRIX_LAYER(
-  // unused
   NULL /*no key*/,
   // left hand
   ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
@@ -537,9 +382,8 @@ KB_MATRIX_LAYER(
   ktrans, NULL /*no key*/, NULL /*no key*/,
   ktrans, ktrans,          kprrel
 ),
-// LAYER 3
+// LAYER 3 - QWERTY conversion layer
 KB_MATRIX_LAYER(
-  // unused
   NULL /*no key*/,
   // left hand
   ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
@@ -563,9 +407,33 @@ KB_MATRIX_LAYER(
   ktrans, NULL /*no key*/, NULL /*no key*/,
   ktrans, ktrans,          ktrans
 ),
-// LAYER 4
+// LAYER 4 - Workman-P to Workman conversion layer
 KB_MATRIX_LAYER(
-  // unused
+  NULL /*no key*/,
+  // left hand
+  ktrans, kprrel, kprrel, kprrel, kprrel, kprrel,    ktrans,
+  ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
+  ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    /*no key*/
+  ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
+  ktrans, ktrans, ktrans, ktrans, ktrans, /*no key*/ /*no key*/
+  // left thumb
+  /*no key*/       ktrans,          ktrans,
+  NULL /*no key*/, NULL /*no key*/, ktrans,
+  ktrans,          ktrans,          ktrans,
+
+  // right hand
+  ktrans,    kprrel,    kprrel, kprrel, kprrel, kprrel, ktrans,
+  ktrans,    ktrans,    ktrans, ktrans, ktrans, ktrans, ktrans,
+  /*no key*/ ktrans,    ktrans, ktrans, ktrans, ktrans, ktrans,
+  ktrans,    ktrans,    ktrans, ktrans, ktrans, ktrans, ktrans,
+  /*no key*/ /*no key*/ ktrans, ktrans, ktrans, ktrans, ktrans,
+  // right thumb
+  ktrans, ktrans,          /*no key*/
+  ktrans, NULL /*no key*/, NULL /*no key*/,
+  ktrans, ktrans,          ktrans
+),
+// LAYER 5 - Backspace/Space swap layer
+KB_MATRIX_LAYER(
   NULL /*no key*/,
   // left hand
   ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
@@ -588,151 +456,20 @@ KB_MATRIX_LAYER(
   ktrans, ktrans,          /*no key*/
   ktrans, NULL /*no key*/, NULL /*no key*/,
   ktrans, ktrans,          kprrel
-),
-// LAYER 5
-KB_MATRIX_LAYER(
-  // unused
-  NULL /*no key*/,
-  // left hand
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      /*no key*/
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/       NULL,            NULL,
-  NULL /*no key*/, NULL /*no key*/, NULL,
-  NULL,            NULL,            NULL,
-
-  // right hand
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ /*no key*/ NULL, NULL, NULL, NULL, NULL,
-  // right thumb
-  NULL, NULL,            /*no key*/
-  NULL, NULL /*no key*/, NULL /*no key*/,
-  NULL, NULL,            NULL
-),
-// LAYER 6
-KB_MATRIX_LAYER(
-  // unused
-  NULL /*no key*/,
-  // left hand
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      /*no key*/
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/       NULL,            NULL,
-  NULL /*no key*/, NULL /*no key*/, NULL,
-  NULL,            NULL,            NULL,
-
-  // right hand
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ /*no key*/ NULL, NULL, NULL, NULL, NULL,
-  // right thumb
-  NULL, NULL,            /*no key*/
-  NULL, NULL /*no key*/, NULL /*no key*/,
-  NULL, NULL,            NULL
-),
-// LAYER 7
-KB_MATRIX_LAYER(
-  // unused
-  NULL /*no key*/,
-  // left hand
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      /*no key*/
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/       NULL,            NULL,
-  NULL /*no key*/, NULL /*no key*/, NULL,
-  NULL,            NULL,            NULL,
-
-  // right hand
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ /*no key*/ NULL, NULL, NULL, NULL, NULL,
-  // right thumb
-  NULL, NULL,            /*no key*/
-  NULL, NULL /*no key*/, NULL /*no key*/,
-  NULL, NULL,            NULL
-),
-// LAYER 8
-KB_MATRIX_LAYER(
-  // unused
-  NULL /*no key*/,
-  // left hand
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      /*no key*/
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/       NULL,            NULL,
-  NULL /*no key*/, NULL /*no key*/, NULL,
-  NULL,            NULL,            NULL,
-
-  // right hand
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ /*no key*/ NULL, NULL, NULL, NULL, NULL,
-  // right thumb
-  NULL, NULL,            /*no key*/
-  NULL, NULL /*no key*/, NULL /*no key*/,
-  NULL, NULL,            NULL
-),
-// LAYER 9
-KB_MATRIX_LAYER(
-  // unused
-  NULL /*no key*/,
-  // left hand
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      /*no key*/
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/       NULL,            NULL,
-  NULL /*no key*/, NULL /*no key*/, NULL,
-  NULL,            NULL,            NULL,
-
-  // right hand
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ /*no key*/ NULL, NULL, NULL, NULL, NULL,
-  // right thumb
-  NULL, NULL,            /*no key*/
-  NULL, NULL /*no key*/, NULL /*no key*/,
-  NULL, NULL,            NULL
-),
+)
 };
 // ----------------------------------------------------------------------------
 
 // RELEASE --------------------------------------------------------------------
 const void_funptr_t PROGMEM _kb_layout_release[KB_LAYERS][KB_ROWS][KB_COLUMNS] = {
-// LAYER 0
+// LAYER 0 - Base layout
 KB_MATRIX_LAYER(
-  // unused
   NULL /*no key*/,
   // left hand
   kprrel, sinvert, sinvert, sinvert, sinvert, sinvert,   kprrel,
   kprrel, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    lpop1,
   kprrel, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    /*no key*/
-  kprrel, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    kprrel,
+  s2kcap, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    kprrel,
   kprrel, kprrel,  kprrel,  kprrel,  kprrel,  /*no key*/ /*no key*/
   // left thumb
   /*no key*/       kprrel,          kprrel,
@@ -743,23 +480,22 @@ KB_MATRIX_LAYER(
   NULL,      sinvert,   sinvert, sinvert, sinvert, sinvert, kprrel,
   lpop1,     kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
   /*no key*/ kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
-  kprrel,    kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
+  kprrel,    kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  s2kcap,
   /*no key*/ /*no key*/ kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
   // right thumb
   kprrel, kprrel,          /*no key*/
   kprrel, NULL /*no key*/, NULL /*no key*/,
   kprrel, kprrel,          kprrel
 ),
-// LAYER 1
+// LAYER 1 - Function layer
 KB_MATRIX_LAYER(
-  // unused
   NULL /*no key*/,
   // left hand
   kprrel, kprrel, kprrel, kprrel, kprrel, kprrel,    kprrel,
   ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
   ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    /*no key*/
   ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
-  NULL,   ktrans, ktrans, mprrel, mprrel, /*no key*/ /*no key*/
+  NULL,   NULL,   ktrans, mprrel, mprrel, /*no key*/ /*no key*/
   // left thumb
   /*no key*/       ktrans,          ktrans,
   NULL /*no key*/, NULL /*no key*/, ktrans,
@@ -776,9 +512,8 @@ KB_MATRIX_LAYER(
   ktrans, NULL /*no key*/, NULL /*no key*/,
   ktrans, ktrans,          mprrel
 ),
-// LAYER 2
+// LAYER 2 - Numpad layer
 KB_MATRIX_LAYER(
-  // unused
   NULL /*no key*/,
   // left hand
   ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
@@ -802,9 +537,8 @@ KB_MATRIX_LAYER(
   ktrans, NULL /*no key*/, NULL /*no key*/,
   ktrans, ktrans,          kprrel
 ),
-// LAYER 3
+// LAYER 3 - QWERTY conversion layer
 KB_MATRIX_LAYER(
-  // unused
   NULL /*no key*/,
   // left hand
   ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
@@ -828,9 +562,33 @@ KB_MATRIX_LAYER(
   ktrans, NULL /*no key*/, NULL /*no key*/,
   ktrans, ktrans,          ktrans
 ),
-// LAYER 4
+// LAYER 4 - Workman-P to Workman conversion layer
 KB_MATRIX_LAYER(
-  // unused
+  NULL /*no key*/,
+  // left hand
+  ktrans, kprrel, kprrel, kprrel, kprrel, kprrel,    ktrans,
+  ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
+  ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    /*no key*/
+  ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
+  ktrans, ktrans, ktrans, ktrans, ktrans, /*no key*/ /*no key*/
+  // left thumb
+  /*no key*/       ktrans,          ktrans,
+  NULL /*no key*/, NULL /*no key*/, ktrans,
+  ktrans,          ktrans,          ktrans,
+
+  // right hand
+  ktrans,    kprrel,    kprrel, kprrel, kprrel, kprrel, ktrans,
+  ktrans,    ktrans,    ktrans, ktrans, ktrans, ktrans, ktrans,
+  /*no key*/ ktrans,    ktrans, ktrans, ktrans, ktrans, ktrans,
+  ktrans,    ktrans,    ktrans, ktrans, ktrans, ktrans, ktrans,
+  /*no key*/ /*no key*/ ktrans, ktrans, ktrans, ktrans, ktrans,
+  // right thumb
+  ktrans, ktrans,          /*no key*/
+  ktrans, NULL /*no key*/, NULL /*no key*/,
+  ktrans, ktrans,          ktrans
+),
+// LAYER 5 - Backspace/Space swap layer
+KB_MATRIX_LAYER(
   NULL /*no key*/,
   // left hand
   ktrans, ktrans, ktrans, ktrans, ktrans, ktrans,    ktrans,
@@ -853,136 +611,6 @@ KB_MATRIX_LAYER(
   ktrans, ktrans,          /*no key*/
   ktrans, NULL /*no key*/, NULL /*no key*/,
   ktrans, ktrans,          kprrel
-),
-// LAYER 5
-KB_MATRIX_LAYER(
-  // unused
-  NULL /*no key*/,
-  // left hand
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      /*no key*/
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/       NULL,            NULL,
-  NULL /*no key*/, NULL /*no key*/, NULL,
-  NULL,            NULL,            NULL,
-
-  // right hand
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ /*no key*/ NULL, NULL, NULL, NULL, NULL,
-  // right thumb
-  NULL, NULL,            /*no key*/
-  NULL, NULL /*no key*/, NULL /*no key*/,
-  NULL, NULL,            NULL
-),
-// LAYER 6
-KB_MATRIX_LAYER(
-  // unused
-  NULL /*no key*/,
-  // left hand
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      /*no key*/
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/       NULL,            NULL,
-  NULL /*no key*/, NULL /*no key*/, NULL,
-  NULL,            NULL,            NULL,
-
-  // right hand
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ /*no key*/ NULL, NULL, NULL, NULL, NULL,
-  // right thumb
-  NULL, NULL,            /*no key*/
-  NULL, NULL /*no key*/, NULL /*no key*/,
-  NULL, NULL,            NULL
-),
-// LAYER 7
-KB_MATRIX_LAYER(
-  // unused
-  NULL /*no key*/,
-  // left hand
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      /*no key*/
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/       NULL,            NULL,
-  NULL /*no key*/, NULL /*no key*/, NULL,
-  NULL,            NULL,            NULL,
-
-  // right hand
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ /*no key*/ NULL, NULL, NULL, NULL, NULL,
-  // right thumb
-  NULL, NULL,            /*no key*/
-  NULL, NULL /*no key*/, NULL /*no key*/,
-  NULL, NULL,            NULL
-),
-// LAYER 8
-KB_MATRIX_LAYER(
-  // unused
-  NULL /*no key*/,
-  // left hand
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      /*no key*/
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/       NULL,            NULL,
-  NULL /*no key*/, NULL /*no key*/, NULL,
-  NULL,            NULL,            NULL,
-
-  // right hand
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ /*no key*/ NULL, NULL, NULL, NULL, NULL,
-  // right thumb
-  NULL, NULL,            /*no key*/
-  NULL, NULL /*no key*/, NULL /*no key*/,
-  NULL, NULL,            NULL
-),
-// LAYER 9
-KB_MATRIX_LAYER(
-  // unused
-  NULL /*no key*/,
-  // left hand
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL,      /*no key*/
-  NULL, NULL, NULL, NULL, NULL, NULL,      NULL,
-  NULL, NULL, NULL, NULL, NULL, /*no key*/ /*no key*/
-  // left thumb
-  /*no key*/       NULL,            NULL,
-  NULL /*no key*/, NULL /*no key*/, NULL,
-  NULL,            NULL,            NULL,
-
-  // right hand
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ NULL,      NULL, NULL, NULL, NULL, NULL,
-  NULL,      NULL,      NULL, NULL, NULL, NULL, NULL,
-  /*no key*/ /*no key*/ NULL, NULL, NULL, NULL, NULL,
-  // right thumb
-  NULL, NULL,            /*no key*/
-  NULL, NULL /*no key*/, NULL /*no key*/,
-  NULL, NULL,            NULL
-),
+)
 };
 // ----------------------------------------------------------------------------

@@ -20,7 +20,7 @@ extern uint16_t consumer_key;
 #define usb_debug_putchar(c)
 #define usb_debug_flush_output()
 
-int8_t usb_extra_consumer_send();
+int8_t usb_extra_consumer_send(void);
 
 #if 0  // removed in favor of equivalent code elsewhere ::Ben Blazak, 2012::
 

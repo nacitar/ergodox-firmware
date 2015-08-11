@@ -692,7 +692,7 @@ int8_t usb_extra_send(uint8_t report_id, uint16_t data)
 	return 0;
 }
 
-int8_t usb_extra_consumer_send()
+int8_t usb_extra_consumer_send(void)
 {
 	int result = 0;
 	// don't resend the same key repeatedly if held, only send it once.
