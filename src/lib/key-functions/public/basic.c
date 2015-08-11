@@ -647,16 +647,16 @@ void kbfun_layer_toggle_10(void) {
  *   Pops all layers from the stack.  Resets the layout to the default state.
  */
 void kbfun_layer_pop_all(void) {
-  kbfun_layer_pop_1();
-  kbfun_layer_pop_2();
-  kbfun_layer_pop_3();
-  kbfun_layer_pop_4();
-  kbfun_layer_pop_5();
-  kbfun_layer_pop_6();
-  kbfun_layer_pop_7();
-  kbfun_layer_pop_8();
-  kbfun_layer_pop_9();
-  kbfun_layer_pop_10();
+	kbfun_layer_pop_1();
+	kbfun_layer_pop_2();
+	kbfun_layer_pop_3();
+	kbfun_layer_pop_4();
+	kbfun_layer_pop_5();
+	kbfun_layer_pop_6();
+	kbfun_layer_pop_7();
+	kbfun_layer_pop_8();
+	kbfun_layer_pop_9();
+	kbfun_layer_pop_10();
 }
 
 /* ----------------------------------------------------------------------------
