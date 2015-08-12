@@ -92,6 +92,7 @@ void kbfun_shift_inverted_press_release(void) {
  */
 void kbfun_press_release_supporting_shift_inversion(void) {
   uint8_t keycode = kb_layout_get(LAYER, ROW, COL);
+  bool was_double = (physical_lshift_pressed && physical_rshift_pressed);
   switch (keycode) {
     // shift state toggles
     case KEY_LeftShift:
@@ -114,7 +115,13 @@ void kbfun_press_release_supporting_shift_inversion(void) {
       kbfun_press_release();
       return;
   }
-  // We only get here if we pressed left or right shift
+  // Handle double-shift caps lock.
+  if (was_double != (physical_lshift_pressed && physical_rshift_pressed)) {
+    // IS_PRESSED gives currnt double state if you think about it.
+    _kbfun_press_release(IS_PRESSED, KEY_CapsLock);
+    return;
+  }
+  // We only get here if we pressed left or right shift and it wasn't a double
   if (inverted_keys_pressed) {
     _kbfun_invert_shift_state();
   } else {
@@ -129,7 +136,6 @@ void kbfun_press_release_supporting_shift_inversion(void) {
 #define  ktog     &kbfun_toggle
 #define  ktrans   &kbfun_transparent
 #define  sinvert  &kbfun_shift_inverted_press_release
-#define  s2kcap   &kbfun_2_keys_capslock_press_release
 // --- layer push/pop functions
 #define  lpush1   &kbfun_layer_push_1
 #define  lpush2   &kbfun_layer_push_2
@@ -314,7 +320,7 @@ KB_MATRIX_LAYER(
   kprrel, sinvert, sinvert, sinvert, sinvert, sinvert,   kprrel,
   kprrel, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    lpush1,
   kprrel, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    /*no key*/
-  s2kcap, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    kprrel,
+  kprrel, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    kprrel,
   kprrel, kprrel,  kprrel,  kprrel,  kprrel,  /*no key*/ /*no key*/
   // left thumb
   /*no key*/       kprrel,          kprrel,
@@ -325,7 +331,7 @@ KB_MATRIX_LAYER(
   ltog2,     sinvert,   sinvert, sinvert, sinvert, sinvert, kprrel,
   lpush1,    kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
   /*no key*/ kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
-  kprrel,    kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  s2kcap,
+  kprrel,    kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
   /*no key*/ /*no key*/ kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
   // right thumb
   kprrel, kprrel,          /*no key*/
@@ -469,7 +475,7 @@ KB_MATRIX_LAYER(
   kprrel, sinvert, sinvert, sinvert, sinvert, sinvert,   kprrel,
   kprrel, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    lpop1,
   kprrel, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    /*no key*/
-  s2kcap, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    kprrel,
+  kprrel, kprrel,  kprrel,  kprrel,  kprrel,  kprrel,    kprrel,
   kprrel, kprrel,  kprrel,  kprrel,  kprrel,  /*no key*/ /*no key*/
   // left thumb
   /*no key*/       kprrel,          kprrel,
@@ -480,7 +486,7 @@ KB_MATRIX_LAYER(
   NULL,      sinvert,   sinvert, sinvert, sinvert, sinvert, kprrel,
   lpop1,     kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
   /*no key*/ kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
-  kprrel,    kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  s2kcap,
+  kprrel,    kprrel,    kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
   /*no key*/ /*no key*/ kprrel,  kprrel,  kprrel,  kprrel,  kprrel,
   // right thumb
   kprrel, kprrel,          /*no key*/
