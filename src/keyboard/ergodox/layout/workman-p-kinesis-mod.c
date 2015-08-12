@@ -359,7 +359,7 @@ KB_MATRIX_LAYER(
   ktrans,    ktrans,    ktrans, ktrans, ktrans, ktrans, ktrans,
   /*no key*/ /*no key*/ mprrel, mprrel, mprrel, ltog4,  ltog3,
   // right thumb
-  ktrans, ktrans,          /*no key*/
+  dbtldr, ktrans,          /*no key*/
   ktrans, NULL /*no key*/, NULL /*no key*/,
   ktrans, ktrans,          mprrel
 ),
@@ -514,7 +514,7 @@ KB_MATRIX_LAYER(
   ktrans,    ktrans,    ktrans, ktrans, ktrans, ktrans, ktrans,
   /*no key*/ /*no key*/ mprrel, mprrel, mprrel, NULL, NULL,
   // right thumb
-  ktrans, ktrans,          /*no key*/
+  NULL,   ktrans,          /*no key*/
   ktrans, NULL /*no key*/, NULL /*no key*/,
   ktrans, ktrans,          mprrel
 ),
