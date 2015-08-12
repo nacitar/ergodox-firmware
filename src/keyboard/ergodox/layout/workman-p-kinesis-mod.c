@@ -115,13 +115,13 @@ void kbfun_press_release_supporting_shift_inversion(void) {
       kbfun_press_release();
       return;
   }
-  // Handle double-shift caps lock.
+  // We only get here if we pressed left or right shift
+  // Handle double-shift caps lock as the state changed
   if (was_double != (physical_lshift_pressed && physical_rshift_pressed)) {
-    // IS_PRESSED gives currnt double state if you think about it.
+    // IS_PRESSED gives current double state if you think about it.
     _kbfun_press_release(IS_PRESSED, KEY_CapsLock);
-    return;
+	// Don't stop normal handling; fall through
   }
-  // We only get here if we pressed left or right shift and it wasn't a double
   if (inverted_keys_pressed) {
     _kbfun_invert_shift_state();
   } else {
